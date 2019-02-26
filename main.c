@@ -58,7 +58,8 @@
 #include "app_timer.h"
 #include "app_scheduler.h"
 #include "nrf_delay.h"
-
+#include "nrf_drv_gpiote.h"
+#include "nrf_gpio.h"
 #define NRF_LOG_MODULE_NAME "APP"
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
@@ -77,6 +78,7 @@
 #define APP_TIMER_OP_QUEUE_SIZE          4                                           /**< Size of timer operation queues. */
 
 #define PIN_IR_IN   1
+#define PIN_IR_POWER 5
 
 /*
  * Global variables
@@ -85,6 +87,18 @@
  static ble_uuid128_t powerMeter_base_uuid =
   {{ 0x86, 0xb4, 0x0d, 0x45, 0x76, 0x88, 0x4b, 0x0f,
      0xa7, 0xbe, 0x54, 0x84, 0x6f, 0x90, 0x17, 0x8a }};
+
+static struct
+{
+       uint16_t counter;
+       uint16_t battery_mV;
+} myManufData = { 0, 0 };
+
+static uint16_t power_w = 0;
+static uint32_t energy_wh = 0;
+static bool got_pulse = false;
+static uint32_t last_pulse_time = 0;
+static ble_powermeter_t powerMeter;
 
  /*
 static uint32_t energy_counter_wh = 0;
@@ -128,8 +142,58 @@ static void application_timers_start(void)
 static void power_manage(void)
 {
     uint32_t err_code = sd_app_evt_wait();
-
     APP_ERROR_CHECK(err_code);
+}
+
+static void power_update( void *data, uint16_t size )
+{
+  uint32_t *now = (uint32_t *) data;
+
+  energy_wh++;
+
+  if( got_pulse )
+  {
+    uint32_t dTicks;
+
+    // counter value is 24 bit, then wraps. Detect one overflow. 24 bits is 512 seconds
+    if( *now > last_pulse_time )
+      dTicks = *now - last_pulse_time;
+    else
+      dTicks = *now + (1 << 24) - last_pulse_time;
+
+    // One pulse is one Wh of energy.
+    // Power = [wh] / h = 1 / ([s]/3600) = 3600 / (ticks / 32768) =
+    // = 32768 *3600 / ticks.
+    // +16384 to do rounding
+    // this will cause overflow if:
+    //  65537 = (3600 * 32768) / (dTicks + 16384 * 3600)
+    // 65537 * (dTicks + 16384 * 3600) = 3600 * 32768
+    // 2 * dTicks + 1800 = 3600
+    // dTicks = 900
+    if( dTicks <= 900 )
+      power_w = 0xffff; /* UINT16_MAX; */
+    else
+      power_w = (((uint32_t) 32768) * 3600) / (dTicks + (16384*3600));
+
+    ble_powermeter_update( &powerMeter, power_w, energy_wh );
+  }
+  else
+  {
+    got_pulse = true;
+    last_pulse_time = *now;
+
+    // don't update on the first pulse, because we don't know the power because
+    // it is measured between pulses.
+  }
+
+}
+
+static void ir_pin_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action )
+{
+  uint32_t now = app_timer_cnt_get();
+
+  app_sched_event_put( &now, sizeof(now), power_update );
+  myManufData.counter++;
 }
 
 /**@brief Function for application main entry.
@@ -139,14 +203,8 @@ int main(void)
     uint32_t err_code;
     bool     erase_bonds = false;
 #if 1
-    ble_powermeter_t powerMeter;
     ble_powermeter_init_t powerMeter_init;
 #endif
-    struct
-    {
-      uint16_t counter;
-      uint16_t battery_mV;
-    } myManufData = { 0, 0 };
 
     // Initialize.
     err_code = NRF_LOG_INIT(NULL);
@@ -161,6 +219,11 @@ int main(void)
     APP_ERROR_CHECK(err_code);
 
 #if 1 // crashes
+
+  // turn on pin 5 which powers the IR led
+  nrf_gpio_cfg_output( PIN_IR_POWER );
+  nrf_gpio_pin_set( PIN_IR_POWER );
+
     powerMeter_init.evt_handler = NULL;
     powerMeter_init.support_notification = true;
     powerMeter_init.p_report_ref = NULL; // What is a Report Reference Descriptor?
@@ -187,7 +250,7 @@ int main(void)
   err_code = erl_ble_adv_start();
   APP_ERROR_CHECK(err_code);
 
-#if 0
+#if 1
     // configure pin 1 as input.
     // when pin 1 goes high, save time stamp. Increment energy counter
     err_code = nrf_drv_gpiote_init();
@@ -221,7 +284,6 @@ int main(void)
     {
         if (NRF_LOG_PROCESS() == false)
         {
-          myManufData.counter++;
           myManufData.battery_mV = erl_ble_bas_get_battery_mV();
 
           // test updating manufacturer data

@@ -62,4 +62,7 @@ uint32_t ble_powermeter_init(ble_powermeter_t * p_pm,
                              const ble_powermeter_init_t * p_pm_init,
                              const ble_uuid128_t *baseUUID );
 
+uint32_t ble_powermeter_update( ble_powermeter_t * p_pm, uint16_t power_w,
+                                uint32_t energy_wh );
+
 #endif

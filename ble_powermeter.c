@@ -10,7 +10,7 @@
 #include "erl_ble.h"
 
 #define INVALID_POWER UINT16_MAX
-#define INVALID_ENERGY      UINT32_MAX
+#define INVALID_ENERGY 0
 
 static uint32_t char_add( ble_powermeter_t * p_pm,
                           const ble_powermeter_init_t * p_pm_init,
@@ -134,24 +134,20 @@ static uint32_t char_add( ble_powermeter_t * p_pm,
 static uint32_t power_char_add( ble_powermeter_t * p_pm,
                                 const ble_powermeter_init_t * p_pm_init)
 {
-  uint16_t initial_power;
-
-  initial_power = INVALID_POWER; // p_bas_init->initial_power;
+  p_pm->power_last_w = INVALID_POWER; // p_bas_init->initial_power;
 
   return char_add( p_pm, p_pm_init, &(p_pm_init->power_char_attr_md), 0x0002, 0x0003,
-              &initial_power, sizeof( uint16_t ), &(p_pm->power_handles),
+              &(p_pm->power_last_w), sizeof( uint16_t ), &(p_pm->power_handles),
               &(p_pm->power_report_ref_handle) );
 }
 
 static uint32_t energy_char_add( ble_powermeter_t * p_pm,
                                  const ble_powermeter_init_t * p_pm_init )
 {
-  uint32_t initial_energy;
-
-  initial_energy = INVALID_ENERGY; // p_bas_init->initial_power;
+  p_pm->energy_last_wh = INVALID_ENERGY; // p_bas_init->initial_power;
 
   return char_add( p_pm, p_pm_init, &(p_pm_init->energy_char_attr_md), 0x0004, 0x0005,
-              &initial_energy, sizeof( uint32_t ), &(p_pm->energy_handles),
+              &(p_pm->energy_last_wh), sizeof( uint32_t ), &(p_pm->energy_handles),
               &(p_pm->energy_report_ref_handle) );
 }
 
@@ -296,5 +292,80 @@ uint32_t ble_powermeter_init(ble_powermeter_t * p_pm,
         return err_code;
 
   err_code = erl_ble_add_ble_evt_func( on_ble_evt, p_pm );
+  return err_code;
+}
+
+static uint32_t update_param( ble_powermeter_t * p_pm, int value_size,
+                              void *new_value_ptr, void *last_value_ptr,
+                              ble_gatts_char_handles_t *handles)
+{
+  uint32_t err_code = NRF_SUCCESS;
+  ble_gatts_value_t gatts_value;
+
+  if (p_pm == NULL)
+      return NRF_ERROR_NULL;
+
+  if( memcmp( new_value_ptr, last_value_ptr, value_size ) != 0 )
+  {
+      // Initialize value struct.
+      memset(&gatts_value, 0, sizeof(gatts_value));
+
+      gatts_value.len     = value_size;
+      gatts_value.offset  = 0;
+      gatts_value.p_value = new_value_ptr;
+
+      // Update database.
+      err_code = sd_ble_gatts_value_set(p_pm->conn_handle,
+                                        handles->value_handle,
+                                        &gatts_value);
+      // Save new battery value.
+      if (err_code == NRF_SUCCESS)
+          memcpy( last_value_ptr, new_value_ptr, value_size );
+      else
+          return err_code;
+
+      // Send value if connected and notifying.
+      if ((p_pm->conn_handle != BLE_CONN_HANDLE_INVALID) && p_pm->is_notification_supported)
+      {
+          ble_gatts_hvx_params_t hvx_params;
+
+          memset(&hvx_params, 0, sizeof(hvx_params));
+
+          hvx_params.handle = handles->value_handle;
+          hvx_params.type   = BLE_GATT_HVX_NOTIFICATION;
+          hvx_params.offset = gatts_value.offset;
+          hvx_params.p_len  = &gatts_value.len;
+          hvx_params.p_data = gatts_value.p_value;
+
+          err_code = sd_ble_gatts_hvx(p_pm->conn_handle, &hvx_params);
+      }
+      else
+          err_code = NRF_ERROR_INVALID_STATE;
+  }
+
+  return err_code;
+}
+
+uint32_t ble_powermeter_update(ble_powermeter_t * p_pm, uint16_t power_w,
+                               uint32_t energy_wh)
+{
+  uint32_t err_code;
+  // uint16_t encoded_power_w;
+  // uint32_t encoded_energy_wh;
+
+  if (p_pm == NULL)
+    return NRF_ERROR_NULL;
+
+  // uint16_encode( power_w, (uint8_t *) &encoded_power_w );
+
+  err_code = update_param( p_pm, sizeof( uint16_t ), &power_w,
+                           &(p_pm->power_last_w), &(p_pm->power_handles));
+  if( err_code != NRF_SUCCESS )
+    return err_code;
+
+  // uint32_encode( energy_wh, (uint8_t *) &encoded_energy_wh );
+
+  err_code = update_param( p_pm, sizeof( uint32_t ), &energy_wh,
+                           &(p_pm->energy_last_wh), &(p_pm->energy_handles));
   return err_code;
 }

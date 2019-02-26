@@ -587,7 +587,7 @@ void erl_ble_init( bool erase_bonds, /*, SleepModeEnterFunc sleepModeEnter, */
 
   // Initialize the scheduler (for passing execution from interrupt context)
   // 0 = MAX EVENT DATA SIZE, 4 = SCHED_QUEUE_SIZE
-  APP_SCHED_INIT(0, 4);
+  APP_SCHED_INIT(sizeof( uint32_t), 4); // powerMeter events are 32 bit clock.
 
   peer_manager_init(erase_bonds);
   if (erase_bonds == true)
@@ -598,7 +598,7 @@ void erl_ble_init( bool erase_bonds, /*, SleepModeEnterFunc sleepModeEnter, */
 
   err_code = erl_ble_adv_init();
   APP_ERROR_CHECK(err_code);
-  
+
   gatt_init();
   services_init( manufacturerName );
   if( false ) conn_params_init();
