@@ -1,0 +1,19 @@
+{
+  "name": "ble-powermeter-central",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "CC0-1.0",
+  "dependencies": {
+    "async": "^2.6.2",
+    "noble-mac": "git://github.com/Timeular/noble-mac.git",
+    "xpc-connection": "git://github.com/taoyuan/node-xpc-connection.git"
+  },
+  "resolutions": {
+    "xpc-connection": "sandeepmistry/node-xpc-connection#pull/26/head"
+  }
+}
