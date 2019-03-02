@@ -1,7 +1,7 @@
 /**
  * Copyright (c) 2014 - 2017, Nordic Semiconductor ASA
  *
- * All rights reserved.
+ * All rightx1s reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
  * are permitted provided that the following conditions are met:
@@ -57,9 +57,10 @@
 // #include "boards.h"
 #include "app_timer.h"
 #include "app_scheduler.h"
-#include "nrf_delay.h"
+// #include "nrf_delay.h"
 #include "nrf_drv_gpiote.h"
 #include "nrf_gpio.h"
+#include "nrf_ic_info.h"
 #define NRF_LOG_MODULE_NAME "APP"
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
@@ -92,6 +93,8 @@ static struct
 {
        uint16_t counter;
        uint16_t battery_mV;
+       uint8_t hwid;
+       uint8_t ram_size_kb;
 } myManufData = { 0, 0 };
 
 static uint16_t power_w = 0;
@@ -151,6 +154,8 @@ static void power_update( void *data, uint16_t size )
 
   energy_wh++;
 
+  // don't update on the first pulse, because we don't know the power because
+  // it is measured between pulses.
   if( got_pulse )
   {
     uint32_t dTicks;
@@ -178,22 +183,20 @@ static void power_update( void *data, uint16_t size )
     ble_powermeter_update( &powerMeter, power_w, energy_wh );
   }
   else
-  {
     got_pulse = true;
-    last_pulse_time = *now;
 
-    // don't update on the first pulse, because we don't know the power because
-    // it is measured between pulses.
-  }
-
+  last_pulse_time = *now;
 }
 
 static void ir_pin_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action )
 {
   uint32_t now = app_timer_cnt_get();
 
-  app_sched_event_put( &now, sizeof(now), power_update );
-  myManufData.counter++;
+  if( (pin == PIN_IR_IN) && (action == GPIOTE_CONFIG_POLARITY_LoToHi))
+  {
+    app_sched_event_put( &now, sizeof(now), power_update );
+    myManufData.counter++;
+  }
 }
 
 /**@brief Function for application main entry.
@@ -202,9 +205,15 @@ int main(void)
 {
     uint32_t err_code;
     bool     erase_bonds = false;
+    nrf_ic_info_t ic_info;
+
 #if 1
     ble_powermeter_init_t powerMeter_init;
 #endif
+
+    nrf_ic_info_get( &ic_info );
+    myManufData.hwid = ic_info.ic_revision;
+    myManufData.ram_size_kb = (uint8_t) ic_info.ram_size;
 
     // Initialize.
     err_code = NRF_LOG_INIT(NULL);
@@ -255,8 +264,9 @@ int main(void)
     // when pin 1 goes high, save time stamp. Increment energy counter
     err_code = nrf_drv_gpiote_init();
     APP_ERROR_CHECK(err_code);
-
-    // false = not high accuracy; don't invoke high frequency clock
+    // hardware bug draws too much current in GPIO in mode, use PORT Instead
+    // false = not high accuracy; don't invoke high frequency clock.
+    // false below uses PORT event?
     nrf_drv_gpiote_in_config_t in_config = GPIOTE_CONFIG_IN_SENSE_LOTOHI(false);
     in_config.pull = NRF_GPIO_PIN_NOPULL;
 

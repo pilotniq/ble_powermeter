@@ -17,9 +17,9 @@
 #include "erl_ble_adv.h"
 #include "ble_bas.h"
 
-// this samples battery voltage every 2s.
+// this samples battery voltage every 60s.
 // keep for now, later increase to much less often to save battery
-#define BATTERY_LEVEL_MEAS_INTERVAL      APP_TIMER_TICKS(2000, APP_TIMER_PRESCALER)  /**< Battery level measurement interval (ticks). */
+#define BATTERY_LEVEL_MEAS_INTERVAL      APP_TIMER_TICKS(60000, APP_TIMER_PRESCALER)  /**< Battery level measurement interval (ticks). */
 
 /*
  * static function prototypes
@@ -27,10 +27,10 @@
 static void battery_level_update( void *data, uint16_t size );
 static void erl_ble_bas_on_ble_evt( ble_evt_t *evt, void *context );
 
- APP_TIMER_DEF(m_battery_timer_id);                        /**< Battery timer. */
- static ble_bas_t m_bas;                                   /**< Structure used to identify the battery service. */
- static nrf_adc_value_t       adc_value; /**< ADC buffer. */
- static nrf_drv_adc_channel_t m_channel_config; //  = NRF_DRV_ADC_DEFAULT_CHANNEL(NRF_ADC_CONFIG_INPUT_0); /**< Channel instance. Default configuration used. */
+APP_TIMER_DEF(m_battery_timer_id);                        /**< Battery timer. */
+static ble_bas_t m_bas;                                   /**< Structure used to identify the battery service. */
+static nrf_adc_value_t       adc_value; /**< ADC buffer. */
+static nrf_drv_adc_channel_t m_channel_config; //  = NRF_DRV_ADC_DEFAULT_CHANNEL(NRF_ADC_CONFIG_INPUT_0); /**< Channel instance. Default configuration used. */
 static uint16_t battery_mV;
  /**
   * @brief ADC interrupt handler.
