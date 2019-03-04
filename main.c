@@ -175,10 +175,13 @@ static void power_update( void *data, uint16_t size )
     // 65537 * (dTicks + 16384 * 3600) = 3600 * 32768
     // 2 * dTicks + 1800 = 3600
     // dTicks = 900
+    //
+    // (32768 * 3600 + ticks / 2) / ticks
+    // strunta i avrundning för nu.
     if( dTicks <= 900 )
       power_w = 0xffff; /* UINT16_MAX; */
     else
-      power_w = (((uint32_t) 32768) * 3600) / (dTicks + (16384*3600));
+      power_w = (((uint32_t) 32768) * 3600) / dTicks;
 
     ble_powermeter_update( &powerMeter, power_w, energy_wh );
   }
