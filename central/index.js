@@ -54,7 +54,7 @@ noble.on('discover', function( peripheral ) {
 					console.log( "Found power characteristic, monitoring." );
 					// Power (in W)
 					characteristics[i].on('data', function(data, isNotification) {
-						console.log('power is now: ', data.readUInt16LE(0) + ' W');
+						console.log(new Date(Date.now()).toLocaleString() + ': power is now: ', data.readUInt16LE(0) + ' W');
 					    });
 					characteristics[i].subscribe(function(error) {
 						console.log('power notification on'); });
@@ -64,7 +64,7 @@ noble.on('discover', function( peripheral ) {
 					console.log( "Found energy characteristic, monitoring." );
 					// Energy (in Wh)
 					characteristics[i].on('data', function(data, isNotification) {
-						console.log('energy is now: ', data.readUInt32LE(0) + ' Wh');
+						console.log(new Date( Date.now()).toLocaleString() + ': energy is now: ', data.readUInt32LE(0) + ' Wh');
 					    });
 					characteristics[i].subscribe(function(error) {
 						console.log('energy notification on'); });
