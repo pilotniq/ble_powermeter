@@ -6,20 +6,20 @@ var connecting = false;
 
 function startScanning()
 {
-    console.log( "startScanning" );
+    console.log( "Searching for Power Meter..." );
     noble.startScanning( ["8a1700018454bea70f4b8876450db486"], true ); // /* serviceUUIDs, allowDuplicates[, callback(error)] */); // particular UUID's
 }
 
-noble.on('scanStart', function() {
-	console.log('on -> scanStart');
-    });
+//noble.on('scanStart', function() {
+	// console.log('on -> scanStart');
+//    });
 
-noble.on('scanStop', function() {
-	console.log('on -> scanStop');
-    });
+//noble.on('scanStop', function() {
+//	console.log('on -> scanStop');
+//    });
 noble.on('warning', function(message) { console.log( "warning: " + message );} );
 noble.on('discover', function( peripheral ) {
-	console.log('on -> discover: ' + peripheral);
+	console.log('Found one: ' + peripheral);
 
 	var advertisement = peripheral.advertisement;
 	var serviceData = advertisement.serviceData;
@@ -33,13 +33,13 @@ noble.on('discover', function( peripheral ) {
 	    console.log('  Service UUIDs     = ' + serviceUuids);
 	}
 
-	console.log( "Connecting: " + connecting );
 	if( !connecting )
 	{
 	  connecting = true;
 	
+	  console.log( "Connecting to Power Meter" );
 	peripheral.connect(function(error) {
-		console.log('connected to peripheral: ' + peripheral.uuid);
+		console.log('connected to Power Meter: ' + peripheral.uuid);
     
 		peripheral.discoverServices(['8a1700018454bea70f4b8876450db486'] , function(error, services) {
 			var service = services[0];
