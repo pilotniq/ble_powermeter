@@ -601,7 +601,7 @@ void erl_ble_init( bool erase_bonds, /*, SleepModeEnterFunc sleepModeEnter, */
 
   gatt_init();
   services_init( manufacturerName );
-  if( false ) conn_params_init();
+  if( true ) conn_params_init();
   // add one timer for the battery service
   // TODO: need malloc for flexible timer count
 
