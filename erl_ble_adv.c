@@ -17,7 +17,7 @@
 #define APP_ADV_FAST_INTERVAL                 300                                         /**< The advertising interval (in units of 0.625 ms. This value corresponds to 187.5 ms). */
 // #define APP_ADV_TIMEOUT_IN_SECONDS       180                                         /**< The advertising timeout in units of seconds. */
 #define APP_ADV_FAST_TIMEOUT_IN_SECONDS       180                                         /**< The advertising timeout in units of seconds. */
-#define APP_ADV_SLOW_INTERVAL                1600                                       /**< slow advertising 1 second */
+#define APP_ADV_SLOW_INTERVAL                3200                                       /**< slow advertising 1600=1 second */
 #define APP_ADV_SLOW_TIMEOUT_IN_SECONDS  0
 
 #define MAX_UUIDS 8
@@ -87,8 +87,12 @@ static void init_advdata( ble_advdata_t *advdata, ble_advdata_t *srdata,
   // put all setvice uuids in sr. should have more advance logic to fit parts
   // in proper package for optimized packing
   memset(srdata, 0, sizeof(*srdata));
+
   srdata->uuids_complete.uuid_cnt = uuid_count;
   srdata->uuids_complete.p_uuids  = m_adv_uuids;
+
+  // srdata->uuids_more_available.uuid_cnt = uuid_count;
+  // srdata->uuids_more_available.p_uuids  = m_adv_uuids;
 }
 
 /**@brief Function for handling advertising events.
